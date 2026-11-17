@@ -1,6 +1,6 @@
 // Кэш приложения для работы без интернета.
 // При изменении файлов увеличьте номер версии, чтобы телефоны получили обновление.
-const CACHE = 'poker-settle-v1';
+const CACHE = 'poker-settle-v2';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

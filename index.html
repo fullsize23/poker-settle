@@ -13,13 +13,14 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
 <style>
-  /* Тёмный «покерный стол»: одна колонка, липкая строка статуса, затем игроки, переводы, отчёт. */
+  /* Тёмный «покерный стол»: одна колонка, липкая строка статуса, переключатель режима, затем данные, переводы, отчёт. */
   :root {
     --bg: #0c1311; --felt: #10241d; --surface: #141d1a; --surface-2: #1a2622; --line: #26352f;
     --fg: #eef4f1; --muted: #8ea39a; --accent: #2fbf8a; --accent-ink: #04140e;
     --win: #43d39e; --win-tint: rgba(67,211,158,.12);
     --loss: #f27a72; --loss-tint: rgba(242,122,114,.12);
     --warn: #e9b44c; --warn-tint: rgba(233,180,76,.12);
+    --gold: #e9c46a;
     --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
     --mono: ui-monospace, "SF Mono", Menlo, "Cascadia Mono", Consolas, monospace;
     color-scheme: dark;
@@ -30,7 +31,7 @@
   body { font-family: var(--font); font-size: 16px; line-height: 1.45; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
   body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
   [hidden] { display: none !important; }
-  button, input, textarea { font: inherit; color: inherit; }
+  button, input, textarea, select { font: inherit; color: inherit; }
   button { border: 0; background: none; }
   h1, h2, p, ul, ol { margin: 0; padding: 0; }
   ul, ol { list-style: none; }
@@ -52,14 +53,20 @@
 
   .topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: rgba(12,19,17,.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
   .topbar .wrap { padding-block: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .brand { font-weight: 800; font-size: 16px; letter-spacing: -.01em; }
+  .brand { font-weight: 800; font-size: 16px; letter-spacing: -.01em; white-space: nowrap; }
   .brand b { color: var(--accent); font-size: 20px; }
-  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 14px; font-weight: 700; white-space: nowrap; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 14px; font-weight: 700; min-width: 0; }
+  .pill span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  main.wrap { padding-block: 20px 48px; }
+  main.wrap { padding-block: 16px 48px; }
   h1 { font-size: 24px; font-weight: 800; line-height: 1.15; letter-spacing: -.02em; text-wrap: balance; }
   h2 { font-size: 18px; font-weight: 800; letter-spacing: -.01em; }
   .label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+  .seg button { min-height: 44px; border-radius: 10px; font-weight: 800; color: var(--muted); cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--fg); box-shadow: inset 0 0 0 1px var(--line); }
+  .seg button[aria-pressed="true"] b { color: var(--accent); }
 
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
   .pad { padding: 16px; } .pad5 { padding: 20px; }
@@ -68,6 +75,8 @@
   .totals .val { font-size: 17px; font-weight: 700; }
   .status { border-radius: 12px; padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start; }
   .status .text { color: var(--fg); opacity: .85; font-size: 14px; }
+  .settings { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  @media (max-width: 420px) { .settings { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
   .field { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; height: 48px; padding: 0 12px; width: 100%; min-width: 0; font-size: 17px; outline: none; -webkit-appearance: none; appearance: none; }
   .field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,191,138,.3); }
@@ -75,15 +84,18 @@
   .field.name { background: transparent; border-color: transparent; padding-left: 4px; font-weight: 700; }
   .field.name:focus { background: var(--bg); border-color: var(--accent); }
   .field.sm { height: 40px; font-size: 15px; }
+  select.field { padding-right: 32px; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 18px) 52%, calc(100% - 13px) 52%; background-size: 5px 5px; background-repeat: no-repeat; }
 
   .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 0 16px; border-radius: 10px; font-weight: 700; cursor: pointer; user-select: none; -webkit-user-select: none; flex: none; transition: background .15s, border-color .15s; }
   .btn:active { transform: translateY(1px); }
   .btn:disabled { opacity: .45; cursor: default; }
-  .btn:focus-visible, .switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn:focus-visible, .switch:focus-visible, .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .primary { background: var(--accent); color: var(--accent-ink); }
   .ghost { background: var(--surface-2); border: 1px solid var(--line); }
   .danger { background: var(--loss-tint); color: var(--loss); border: 1px solid rgba(242,122,114,.4); }
   .chip { background: var(--win-tint); color: var(--win); border: 1px solid rgba(67,211,158,.35); white-space: nowrap; }
+  .preset { min-height: 40px; padding: 0 12px; font-size: 14px; }
+  .preset[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
   .sq { width: 48px; padding: 0; }
   .icon { width: 44px; min-height: 44px; padding: 0; }
   .grow { flex: 1 1 220px; }
@@ -95,11 +107,26 @@
 
   .player .grid2 { display: grid; grid-template-columns: 1fr; gap: 12px; }
   @media (min-width: 640px) { .player .grid2 { grid-template-columns: 1fr 1fr; } }
+  .player .grid3 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .player .grid3 .place { grid-column: 1 / -1; }
+  @media (min-width: 560px) { .player .grid3 { grid-template-columns: 1fr 1fr 1fr; } .player .grid3 .place { grid-column: auto; } }
+  .stepper { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 4px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; height: 48px; padding: 2px; }
+  .stepper button { height: 42px; border-radius: 8px; background: var(--surface-2); font-weight: 800; font-size: 18px; cursor: pointer; }
+  .stepper output { text-align: center; font-weight: 700; font-size: 17px; }
   .net { padding: 6px 12px; border-radius: 8px; font-weight: 700; white-space: nowrap; }
   .lbl { display: flex; align-items: center; justify-content: space-between; }
   .chips { display: inline-flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; }
   .chips i { width: 14px; height: 14px; border-radius: 50%; border: 2px dashed rgba(238,244,241,.7); background: var(--accent); margin-left: -6px; box-shadow: 0 0 0 1.5px var(--surface); }
   .chips i:first-child { margin-left: 0; }
+  .medal { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; font-weight: 800; font-size: 13px; flex: none; background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+  .medal.p1 { background: var(--gold); color: #2a1f05; border-color: transparent; }
+  .medal.p2 { background: #c9d3cf; color: #1a2420; border-color: transparent; }
+  .medal.p3 { background: #c98b5a; color: #26160a; border-color: transparent; }
+
+  .payout { display: grid; grid-template-columns: 28px minmax(0, 1fr) 96px auto; align-items: center; gap: 10px; padding: 8px 12px; }
+  .payout .pct { position: relative; }
+  .payout .pct input { padding-right: 26px; text-align: right; height: 44px; }
+  .payout .pct span { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 
   .transfer { padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .transfer .amt { background: var(--surface-2); padding: 4px 10px; border-radius: 8px; font-weight: 700; color: var(--fg); }
@@ -114,59 +141,130 @@
 <body>
 <header class="topbar">
   <div class="wrap gutter">
-    <div class="row min0"><span class="brand"><b aria-hidden="true">♠</b> Взаиморасчёт</span></div>
+    <span class="brand"><b aria-hidden="true">♠</b> Взаиморасчёт</span>
     <div id="pill" class="pill" aria-live="polite"><span id="pillIcon"></span><span id="pillText" class="num"></span></div>
   </div>
 </header>
 
 <main class="wrap gutter stack-y g5">
-  <section class="card felt pad5 stack-y g4">
-    <div class="stack-y g1">
-      <h1>Расчёт после кэш-игры</h1>
-      <p class="muted small">Впишите, сколько каждый внёс и с какой суммой фишек ушёл из-за стола. Переводы посчитаются сами.</p>
-      <p id="sampleNote" class="small" style="color: var(--warn)" hidden>Сейчас открыт пример с тестовыми игроками.</p>
-    </div>
-    <div class="totals">
-      <div class="stack-y g1 min0"><span class="label">Внесено</span><span id="tIn" class="num val truncate"></span></div>
-      <div class="stack-y g1 min0"><span class="label">Выведено</span><span id="tOut" class="num val truncate"></span></div>
-      <div class="stack-y g1 min0"><span class="label">Разница</span><span id="tDiff" class="num val truncate"></span></div>
-    </div>
-    <div id="statusBox" class="status">
-      <div id="statusIcon" style="margin-top:2px"></div>
-      <div class="stack-y" style="gap:2px"><strong id="statusTitle"></strong><span id="statusText" class="text"></span></div>
-    </div>
-    <div class="row between" style="gap:16px">
-      <label for="distribute" class="stack-y small" style="gap:2px; cursor:pointer">
-        <span class="bold">Пропорционально распределить расхождение между победителями</span>
-        <span id="distHint" class="muted xs"></span>
-      </label>
-      <button id="distribute" type="button" role="switch" aria-checked="false" class="switch"><span></span></button>
-    </div>
-  </section>
+  <nav class="seg" aria-label="Формат игры">
+    <button type="button" data-mode="cash" aria-pressed="true"><b>♠</b> Кэш-игра</button>
+    <button type="button" data-mode="tour" aria-pressed="false"><b>♛</b> Турнир</button>
+  </nav>
 
-  <section class="stack-y g3">
-    <div class="row between" style="flex-wrap:wrap; align-items:flex-end; gap:12px">
-      <h2>Игроки <span id="count" class="num muted" style="font-size:16px"></span></h2>
-      <div class="row" style="gap:12px">
-        <label class="stack-y g1" style="width:120px"><span class="label">Бай-ин</span><input id="step" class="field sm num" inputmode="decimal"></label>
-        <label class="stack-y g1" style="width:72px"><span class="label">Валюта</span><input id="currency" class="field sm" maxlength="4"></label>
+  <!-- ===================== КЭШ-ИГРА ===================== -->
+  <div id="cashView" class="stack-y g5">
+    <section class="card felt pad5 stack-y g4">
+      <div class="stack-y g1">
+        <h1>Расчёт после кэш-игры</h1>
+        <p class="muted small">Впишите, сколько каждый внёс и с какой суммой фишек ушёл из-за стола. Переводы посчитаются сами.</p>
+        <p id="sampleNote" class="small" style="color: var(--warn)" hidden>Сейчас открыт пример с тестовыми игроками.</p>
       </div>
-    </div>
-    <div id="empty" class="card pad stack-y g3 muted" style="align-items:center; text-align:center" hidden>
-      <span>Список пуст. Добавьте первого игрока ниже или загрузите пример.</span>
-      <button type="button" class="btn ghost" data-sample>Загрузить пример</button>
-    </div>
-    <ul id="players" class="stack-y g3"></ul>
-    <form id="addForm" class="row">
-      <input id="newName" class="field" placeholder="Имя нового игрока" aria-label="Имя нового игрока" autocomplete="off">
-      <button type="submit" class="btn primary">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-        Добавить
-      </button>
-    </form>
-    <p class="muted xs">Новый игрок сразу получает один бай-ин. Звёздочка у результата значит, что в нём учтена доля расхождения.</p>
-  </section>
+      <div class="totals">
+        <div class="stack-y g1 min0"><span class="label">Внесено</span><span id="tIn" class="num val truncate"></span></div>
+        <div class="stack-y g1 min0"><span class="label">Выведено</span><span id="tOut" class="num val truncate"></span></div>
+        <div class="stack-y g1 min0"><span class="label">Разница</span><span id="tDiff" class="num val truncate"></span></div>
+      </div>
+      <div id="statusBox" class="status">
+        <div id="statusIcon" style="margin-top:2px"></div>
+        <div class="stack-y" style="gap:2px"><strong id="statusTitle"></strong><span id="statusText" class="text"></span></div>
+      </div>
+      <div class="row between" style="gap:16px">
+        <label for="distribute" class="stack-y small" style="gap:2px; cursor:pointer">
+          <span class="bold">Пропорционально распределить расхождение между победителями</span>
+          <span id="distHint" class="muted xs"></span>
+        </label>
+        <button id="distribute" type="button" role="switch" aria-checked="false" class="switch"><span></span></button>
+      </div>
+    </section>
 
+    <section class="stack-y g3">
+      <div class="row between" style="flex-wrap:wrap; align-items:flex-end; gap:12px">
+        <h2>Игроки <span id="count" class="num muted" style="font-size:16px"></span></h2>
+        <div class="row" style="gap:12px">
+          <label class="stack-y g1" style="width:120px"><span class="label">Бай-ин</span><input id="step" class="field sm num" inputmode="decimal"></label>
+          <label class="stack-y g1" style="width:72px"><span class="label">Валюта</span><input id="currency" class="field sm" maxlength="4"></label>
+        </div>
+      </div>
+      <div id="empty" class="card pad stack-y g3 muted" style="align-items:center; text-align:center" hidden>
+        <span>Список пуст. Добавьте первого игрока ниже или загрузите пример.</span>
+        <button type="button" class="btn ghost" data-sample>Загрузить пример</button>
+      </div>
+      <ul id="players" class="stack-y g3"></ul>
+      <form id="addForm" class="row">
+        <input id="newName" class="field" placeholder="Имя нового игрока" aria-label="Имя нового игрока" autocomplete="off">
+        <button type="submit" class="btn primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Добавить
+        </button>
+      </form>
+      <p class="muted xs">Новый игрок сразу получает один бай-ин. Звёздочка у результата значит, что в нём учтена доля расхождения.</p>
+    </section>
+  </div>
+
+  <!-- ===================== ТУРНИР ===================== -->
+  <div id="tourView" class="stack-y g5" hidden>
+    <section class="card felt pad5 stack-y g4">
+      <div class="stack-y g1">
+        <h1>Расчёт турнира</h1>
+        <p class="muted small">Отметьте ребаи, аддоны и занятые места. Призовой фонд разделится по процентам, а переводы посчитаются сами.</p>
+        <p id="tSampleNote" class="small" style="color: var(--warn)" hidden>Сейчас открыт пример с тестовыми игроками.</p>
+      </div>
+      <div class="totals">
+        <div class="stack-y g1 min0"><span class="label">Призовой фонд</span><span id="tPool" class="num val truncate"></span></div>
+        <div class="stack-y g1 min0"><span class="label">Ребаи / аддоны</span><span id="tEntries" class="num val truncate"></span></div>
+        <div class="stack-y g1 min0"><span class="label">Призовых мест</span><span id="tPaid" class="num val truncate"></span></div>
+      </div>
+      <div id="tStatusBox" class="status">
+        <div id="tStatusIcon" style="margin-top:2px"></div>
+        <div class="stack-y" style="gap:2px"><strong id="tStatusTitle"></strong><span id="tStatusText" class="text"></span></div>
+      </div>
+      <div class="settings">
+        <label class="stack-y g1 min0"><span class="label">Бай-ин</span><input id="tBuyIn" class="field sm num" inputmode="decimal"></label>
+        <label class="stack-y g1 min0"><span class="label">Ребай</span><input id="tRebuy" class="field sm num" inputmode="decimal"></label>
+        <label class="stack-y g1 min0"><span class="label">Аддон</span><input id="tAddon" class="field sm num" inputmode="decimal"></label>
+        <label class="stack-y g1 min0"><span class="label">Валюта</span><input id="tCurrency" class="field sm" maxlength="4"></label>
+      </div>
+    </section>
+
+    <section class="stack-y g3">
+      <div class="row between" style="flex-wrap:wrap; gap:8px">
+        <h2>Призовые места</h2>
+        <span id="pctSum" class="num small bold"></span>
+      </div>
+      <div class="wrap-row" id="presets">
+        <button type="button" class="btn ghost preset" data-preset="100">Всё первому</button>
+        <button type="button" class="btn ghost preset" data-preset="65,35">65 / 35</button>
+        <button type="button" class="btn ghost preset" data-preset="50,30,20">50 / 30 / 20</button>
+        <button type="button" class="btn ghost preset" data-preset="40,30,20,10">40 / 30 / 20 / 10</button>
+      </div>
+      <ol id="payouts" class="card stack-y" style="padding-block:6px"></ol>
+      <div class="wrap-row">
+        <button id="addPlace" type="button" class="btn ghost">+ Место</button>
+        <button id="removePlace" type="button" class="btn ghost">− Место</button>
+      </div>
+      <p class="muted xs">Призы округляются до целых, остаток от округления получает первое место.</p>
+    </section>
+
+    <section class="stack-y g3">
+      <h2>Игроки <span id="tCount" class="num muted" style="font-size:16px"></span></h2>
+      <div id="tEmpty" class="card pad stack-y g3 muted" style="align-items:center; text-align:center" hidden>
+        <span>Список пуст. Добавьте первого игрока ниже или загрузите пример.</span>
+        <button type="button" class="btn ghost" data-sample>Загрузить пример</button>
+      </div>
+      <ul id="tPlayers" class="stack-y g3"></ul>
+      <form id="tAddForm" class="row">
+        <input id="tNewName" class="field" placeholder="Имя нового игрока" aria-label="Имя нового игрока" autocomplete="off">
+        <button type="submit" class="btn primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Добавить
+        </button>
+      </form>
+      <p class="muted xs">Каждый игрок платит бай-ин, плюс ребаи и аддоны по количеству. Результат игрока равен призу минус всё, что он внёс.</p>
+    </section>
+  </div>
+
+  <!-- ===================== ОБЩЕЕ ===================== -->
   <section class="stack-y g3">
     <h2>Кто кому переводит</h2>
     <div id="transfersMsg" class="card pad small" hidden></div>
@@ -191,7 +289,7 @@
       <button type="button" class="btn ghost" data-sample>Загрузить пример</button>
     </div>
     <div id="confirmBox" class="card pad stack-y g3" role="alertdialog" aria-label="Подтверждение очистки" hidden>
-      <span>Удалить всех игроков и суммы? Отменить это нельзя.</span>
+      <span id="confirmText">Удалить всех игроков и суммы? Отменить это нельзя.</span>
       <div class="wrap-row">
         <button id="confirmYes" type="button" class="btn danger">Да, очистить</button>
         <button id="confirmNo" type="button" class="btn ghost">Отмена</button>
@@ -247,6 +345,48 @@ function computeSettlement(players, distribute) {
   return { rows, totalIn, totalOut, diff, sumPos, canSettle, adjusted, transfers };
 }
 
+// Турнир: фонд = бай-ины + ребаи + аддоны; призы по процентам, округлены до целых, остаток — первому месту.
+function computeTournament(t) {
+  const buyC = toCents(parseAmount(t.buyIn));
+  const rebuyC = toCents(parseAmount(t.rebuy));
+  const addonC = toCents(parseAmount(t.addon));
+  const rows = t.players.map((p, i) => {
+    const rebuys = Math.max(0, p.rebuys | 0), addons = Math.max(0, p.addons | 0);
+    const paid = buyC + rebuys * rebuyC + addons * addonC;
+    const place = parseInt(p.place, 10) || 0;
+    return { id: p.id, name: (p.name || '').trim() || ('Игрок ' + (i + 1)), rebuys, addons, paid, place, prize: 0, final: 0 };
+  });
+  const pool = rows.reduce((s, r) => s + r.paid, 0);
+  const pcts = t.payouts.map(parseAmount);
+  const pctSum = Math.round(pcts.reduce((s, x) => s + x, 0) * 1000) / 1000;
+  const prizes = pcts.map(p => Math.floor(pool * p / 100 / 100) * 100);
+  if (prizes.length) prizes[0] += pool - prizes.reduce((s, x) => s + x, 0);
+
+  const issues = [];
+  if (!rows.length) issues.push('Добавьте игроков.');
+  if (!pcts.length) issues.push('Добавьте хотя бы одно призовое место.');
+  else if (pctSum !== 100) issues.push('Сумма процентов ' + String(pctSum).replace('.', ',') + '%, а должна быть 100%.');
+  if (rows.length && pcts.length > rows.length) issues.push('Призовых мест (' + pcts.length + ') больше, чем игроков (' + rows.length + ').');
+  const byPlace = {};
+  rows.forEach(r => { if (r.place) (byPlace[r.place] = byPlace[r.place] || []).push(r.name); });
+  for (let k = 1; k <= Math.min(pcts.length, rows.length); k++) {
+    if (!byPlace[k]) issues.push('Не указано, кто занял ' + k + '-е место.');
+  }
+  Object.keys(byPlace).forEach(k => {
+    if (byPlace[k].length > 1) issues.push(k + '-е место стоит у нескольких игроков: ' + byPlace[k].join(', ') + '.');
+  });
+
+  const valid = issues.length === 0;
+  rows.forEach(r => {
+    r.prize = valid && r.place >= 1 && r.place <= prizes.length ? prizes[r.place - 1] : 0;
+    r.final = r.prize - r.paid;
+  });
+  const transfers = valid ? greedyTransfers(rows) : [];
+  const totalRebuys = rows.reduce((s, r) => s + r.rebuys, 0);
+  const totalAddons = rows.reduce((s, r) => s + r.addons, 0);
+  return { rows, pool, pcts, pctSum, prizes, issues, valid, transfers, totalRebuys, totalAddons };
+}
+
 // Жадный алгоритм: крупнейший должник платит крупнейшему победителю, пока один из них не рассчитается.
 function greedyTransfers(rows) {
   const debtors = rows.filter(r => r.final < 0).map(r => ({ name: r.name, amt: -r.final }));
@@ -271,32 +411,45 @@ function greedyTransfers(rows) {
 <script>
 (function () {
   const KEY = 'poker-settle-v1';
+  const TKEY = 'poker-settle-tour-v1';
+  const MKEY = 'poker-settle-mode';
   const nf = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
   const $ = id => document.getElementById(id);
   let uid = 0;
   const newId = () => Date.now().toString(36) + '-' + (uid++);
   const mk = (name, buyIn, cashOut) => ({ id: newId(), name, buyIn, cashOut });
+  const mkT = (name, rebuys, addons, place) => ({ id: newId(), name, rebuys, addons, place: place ? String(place) : '' });
+
   const sample = () => ({
     settings: { step: '1000', currency: '₽', distribute: false },
     players: [mk('Алексей', '2000', '4700'), mk('Мария', '1000', '2300'), mk('Дмитрий', '3000', '800'), mk('Ольга', '2000', '1200'), mk('Сергей', '1000', '0')],
     isSample: true,
   });
-  function load() {
-    try {
-      const s = JSON.parse(localStorage.getItem(KEY) || 'null');
-      if (s && Array.isArray(s.players) && s.settings) return s;
-    } catch (e) {}
-    return sample();
-  }
-  let state = load();
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
-  const touched = () => { state.isSample = false; };
+  const sampleT = () => ({
+    buyIn: '1000', rebuy: '1000', addon: '500', currency: '₽', payouts: ['50', '30', '20'],
+    players: [mkT('Алексей', 1, 1, 1), mkT('Мария', 0, 1, 2), mkT('Дмитрий', 2, 1, 3), mkT('Ольга', 1, 0, 4), mkT('Сергей', 0, 1, 5), mkT('Иван', 0, 0, 6)],
+    isSample: true,
+  });
 
-  function fmt(c, signed) {
-    const cur = state.settings.currency;
-    const sign = c > 0 ? (signed ? '+' : '') : c < 0 ? '−' : '';
-    return sign + nf.format(Math.abs(c) / 100) + (cur ? ' ' + cur : '');
+  function loadJSON(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return null; } }
+  function store(key, val) { try { localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val)); } catch (e) {} }
+
+  let state = (s => s && Array.isArray(s.players) && s.settings ? s : sample())(loadJSON(KEY));
+  let tour = (s => s && Array.isArray(s.players) && Array.isArray(s.payouts) ? s : sampleT())(loadJSON(TKEY));
+  let mode = 'cash';
+  try { mode = localStorage.getItem(MKEY) === 'tour' ? 'tour' : 'cash'; } catch (e) {}
+
+  const save = () => store(KEY, state);
+  const saveT = () => store(TKEY, tour);
+
+  function fmtWith(cur) {
+    return (c, signed) => {
+      const sign = c > 0 ? (signed ? '+' : '') : c < 0 ? '−' : '';
+      return sign + nf.format(Math.abs(c) / 100) + (cur ? ' ' + cur : '');
+    };
   }
+  const fmtC = (c, s) => fmtWith(state.settings.currency)(c, s);
+  const fmtT = (c, s) => fmtWith(tour.currency)(c, s);
   function plural(n, one, few, many) {
     const a = Math.abs(n) % 100, b = a % 10;
     if (a > 10 && a < 20) return many;
@@ -304,19 +457,70 @@ function greedyTransfers(rows) {
     if (b === 1) return one;
     return many;
   }
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ICON_OK = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
   const ICON_WARN = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 7v6M12 17h.01"/><circle cx="12" cy="12" r="9.5"/></svg>';
+  const X_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
   let toastTimer;
   function toast(msg) {
     const t = $('toast'); t.textContent = msg; t.hidden = false;
     clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
   }
+  function setStatus(prefix, ok, color, tint, title, text) {
+    const el = s => $(prefix ? prefix + s : s[0].toLowerCase() + s.slice(1));
+    const box = el('StatusBox'); box.style.color = color; box.style.background = tint;
+    el('StatusIcon').innerHTML = ok ? ICON_OK : ICON_WARN;
+    el('StatusTitle').textContent = title;
+    el('StatusText').textContent = text;
+  }
+  function setPill(ok, color, tint, text) {
+    const pill = $('pill'); pill.style.color = color; pill.style.background = tint;
+    $('pillIcon').innerHTML = ok ? ICON_OK : ICON_WARN;
+    $('pillText').textContent = text;
+  }
 
-  function buildReport(res) {
-    const date = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-    const L = [];
-    L.push('♠️ Итоги покерной игры · ' + date, '');
+  // ---------- Общие блоки: переводы и отчёт ----------
+  function renderTransfers(n, canSettle, transfers, fmt, blockedText) {
+    const msg = $('transfersMsg'), list = $('transfers'), note = $('transfersNote');
+    list.textContent = '';
+    msg.hidden = true; note.hidden = true; msg.style.borderColor = ''; msg.classList.remove('muted');
+    if (n > 0 && !canSettle) {
+      msg.hidden = false; msg.style.borderColor = 'rgba(242,122,114,.4)'; msg.textContent = blockedText;
+    } else if (n > 0 && !transfers.length) {
+      msg.hidden = false; msg.classList.add('muted'); msg.textContent = 'Переводы не нужны: все остались при своих.';
+    }
+    transfers.forEach((t, i) => {
+      const li = document.createElement('li');
+      li.className = 'card transfer';
+      li.innerHTML = '<span class="num muted small" style="width:18px"></span><span class="who" style="color:var(--loss)"></span>' +
+        '<span class="row muted"><span aria-hidden="true">→</span><span class="amt num"></span><span aria-hidden="true">→</span></span>' +
+        '<span class="who" style="color:var(--win)"></span>';
+      const s = li.children;
+      s[0].textContent = i + 1; s[1].textContent = t.from; s[3].textContent = t.to;
+      li.querySelector('.amt').textContent = fmt(t.amount);
+      list.appendChild(li);
+    });
+    if (transfers.length) {
+      note.hidden = false;
+      note.textContent = transfers.length + ' ' + plural(transfers.length, 'перевод', 'перевода', 'переводов') +
+        '. Сначала самый крупный проигравший рассчитывается с самым крупным победителем, так переводов получается меньше всего.';
+    }
+    $('clear').disabled = n === 0;
+    $('copy').disabled = n === 0;
+  }
+  const today = () => new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+  function transfersLines(L, canSettle, transfers, fmt, blocked) {
+    L.push('', '💸 Переводы:');
+    if (!canSettle) L.push(blocked);
+    else if (!transfers.length) L.push('Переводы не нужны: все остались при своих.');
+    else transfers.forEach((t, i) => L.push((i + 1) + '. ' + t.from + ' → ' + fmt(t.amount) + ' → ' + t.to));
+  }
+
+  // ================= КЭШ-ИГРА =================
+  function buildCashReport(res) {
+    const fmt = fmtC, L = [];
+    L.push('♠️ Итоги покерной игры · ' + today(), '');
     L.push('💰 Общий банк: ' + fmt(res.totalIn) + ' · ' + res.rows.length + ' ' + plural(res.rows.length, 'игрок', 'игрока', 'игроков'));
     if (res.diff !== 0) {
       const kind = res.diff < 0 ? 'недостача' : 'излишек';
@@ -329,15 +533,11 @@ function greedyTransfers(rows) {
       const dot = r.final > 0 ? '🟢' : r.final < 0 ? '🔴' : '⚪';
       L.push(dot + ' ' + r.name + ': ' + (r.final === 0 ? '0' : fmt(r.final, true)) + ' (внёс ' + fmt(r.inC) + ', вывел ' + fmt(r.outC) + ')');
     });
-    L.push('', '💸 Переводы:');
-    if (!res.canSettle) L.push('Не рассчитаны: сначала сведите баланс.');
-    else if (!res.transfers.length) L.push('Переводы не нужны: все остались при своих.');
-    else res.transfers.forEach((t, i) => L.push((i + 1) + '. ' + t.from + ' → ' + fmt(t.amount) + ' → ' + t.to));
+    transfersLines(L, res.canSettle, res.transfers, fmt, 'Не рассчитаны: сначала сведите баланс.');
     return L.join('\n');
   }
 
-  // ---------- Игроки ----------
-  function cardEl(p) {
+  function cashCard(p) {
     const li = document.createElement('li');
     li.className = 'card pad player stack-y g3';
     li.dataset.id = p.id;
@@ -345,8 +545,7 @@ function greedyTransfers(rows) {
       '<div class="row">' +
         '<input class="field name" data-field="name" aria-label="Имя игрока" autocomplete="off">' +
         '<div class="net num" data-net></div>' +
-        '<button type="button" class="btn ghost icon" data-action="remove" aria-label="Удалить игрока">' +
-          '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
+        '<button type="button" class="btn ghost icon" data-action="remove" aria-label="Удалить игрока">' + X_SVG + '</button>' +
       '</div>' +
       '<div class="grid2">' +
         '<div class="stack-y min0" style="gap:6px">' +
@@ -367,24 +566,24 @@ function greedyTransfers(rows) {
     li.querySelector('[data-field=cashOut]').value = p.cashOut;
     return li;
   }
-  function renderPlayers() {
+  function renderCashPlayers() {
     const ul = $('players');
     ul.textContent = '';
-    state.players.forEach(p => ul.appendChild(cardEl(p)));
+    state.players.forEach(p => ul.appendChild(cashCard(p)));
     $('step').value = state.settings.step;
     $('currency').value = state.settings.currency;
-    renderResults();
+    renderCash();
   }
-  const findPlayer = id => state.players.find(p => p.id === id);
+  const findCash = id => state.players.find(p => p.id === id);
 
   $('players').addEventListener('input', e => {
     const f = e.target.dataset.field; if (!f) return;
-    const p = findPlayer(e.target.closest('li').dataset.id); if (!p) return;
-    p[f] = e.target.value; touched(); renderResults(); save();
+    const p = findCash(e.target.closest('li').dataset.id); if (!p) return;
+    p[f] = e.target.value; state.isSample = false; renderCash(); save();
   });
   $('players').addEventListener('click', e => {
     const btn = e.target.closest('[data-action]'); if (!btn) return;
-    const li = btn.closest('li'); const id = li.dataset.id; const p = findPlayer(id);
+    const li = btn.closest('li'); const id = li.dataset.id; const p = findCash(id);
     const a = btn.dataset.action;
     if (a === 'remove') {
       state.players = state.players.filter(x => x.id !== id);
@@ -395,12 +594,12 @@ function greedyTransfers(rows) {
       p.buyIn = String(next / 100);
       li.querySelector('[data-field=buyIn]').value = p.buyIn;
     }
-    touched(); renderResults(); save();
+    state.isSample = false; renderCash(); save();
   });
 
-  // ---------- Итоги ----------
-  function renderResults() {
+  function renderCash() {
     const res = computeSettlement(state.players, state.settings.distribute);
+    const fmt = fmtC;
     const n = state.players.length;
     const balanced = res.diff === 0;
     const byId = {}; res.rows.forEach(r => { byId[r.id] = r; });
@@ -408,10 +607,7 @@ function greedyTransfers(rows) {
     $('count').textContent = n;
     $('empty').hidden = n > 0;
     $('sampleNote').hidden = !state.isSample;
-    $('clear').disabled = n === 0;
-    $('copy').disabled = n === 0;
 
-    // карточки игроков
     const stepC = toCents(parseAmount(state.settings.step));
     document.querySelectorAll('#players > li').forEach((li, i) => {
       const r = byId[li.dataset.id]; if (!r) return;
@@ -429,7 +625,6 @@ function greedyTransfers(rows) {
       } else chips.textContent = '';
     });
 
-    // суммы и статус
     $('tIn').textContent = fmt(res.totalIn);
     $('tOut').textContent = fmt(res.totalOut);
     $('tDiff').textContent = balanced ? '0' : fmt(res.diff, true);
@@ -445,80 +640,273 @@ function greedyTransfers(rows) {
       : res.diff < 0 ? 'Выведено на ' + fmt(-res.diff) + ' меньше, чем внесено: в банке не хватает фишек или кто-то не записал вывод.'
       : 'Выведено на ' + fmt(res.diff) + ' больше, чем внесено: проверьте, все ли докупки записаны.';
     if (!balanced && n > 0 && res.adjusted) text += ' Расхождение распределено между победителями.';
-
-    const pill = $('pill'); pill.style.color = color; pill.style.background = tint;
-    $('pillIcon').innerHTML = ok ? ICON_OK : ICON_WARN;
-    $('pillText').textContent = n === 0 ? 'Нет игроков' : title;
-    const box = $('statusBox'); box.style.color = color; box.style.background = tint;
-    $('statusIcon').innerHTML = ok ? ICON_OK : ICON_WARN;
-    $('statusTitle').textContent = title;
-    $('statusText').textContent = text;
+    setStatus('', ok, color, tint, title, text);
+    setPill(ok, color, tint, n === 0 ? 'Нет игроков' : title);
 
     $('distribute').setAttribute('aria-checked', state.settings.distribute ? 'true' : 'false');
     $('distHint').textContent = res.sumPos === 0 && !balanced
       ? 'Нет победителей, распределять не на кого.'
       : 'Каждый в плюсе получает долю расхождения по размеру выигрыша.';
 
-    // переводы
-    const msg = $('transfersMsg'), list = $('transfers'), note = $('transfersNote');
-    list.textContent = '';
-    msg.hidden = true; note.hidden = true; msg.style.borderColor = '';
-    msg.classList.remove('muted');
-    if (n > 0 && !res.canSettle) {
-      msg.hidden = false;
-      msg.style.borderColor = 'rgba(242,122,114,.4)';
-      msg.textContent = 'Переводы появятся, когда баланс сойдётся. Исправьте суммы или включите распределение расхождения между победителями.';
-    } else if (n > 0 && !res.transfers.length) {
-      msg.hidden = false; msg.classList.add('muted');
-      msg.textContent = 'Переводы не нужны: все остались при своих.';
-    }
-    res.transfers.forEach((t, i) => {
-      const li = document.createElement('li');
-      li.className = 'card transfer';
-      li.innerHTML = '<span class="num muted small" style="width:18px"></span><span class="who" style="color:var(--loss)"></span>' +
-        '<span class="row muted"><span aria-hidden="true">→</span><span class="amt num"></span><span aria-hidden="true">→</span></span>' +
-        '<span class="who" style="color:var(--win)"></span>';
-      const s = li.children;
-      s[0].textContent = i + 1; s[1].textContent = t.from; s[3].textContent = t.to;
-      li.querySelector('.amt').textContent = fmt(t.amount);
-      list.appendChild(li);
-    });
-    if (res.transfers.length) {
-      note.hidden = false;
-      note.textContent = res.transfers.length + ' ' + plural(res.transfers.length, 'перевод', 'перевода', 'переводов') +
-        '. Сначала самый крупный проигравший рассчитывается с самым крупным победителем, так переводов получается меньше всего.';
-    }
-    $('report').value = buildReport(res);
+    renderTransfers(n, res.canSettle, res.transfers, fmt,
+      'Переводы появятся, когда баланс сойдётся. Исправьте суммы или включите распределение расхождения между победителями.');
+    $('report').value = buildCashReport(res);
   }
 
-  // ---------- Управление ----------
-  $('step').addEventListener('input', e => { state.settings.step = e.target.value; renderResults(); save(); });
-  $('currency').addEventListener('input', e => { state.settings.currency = e.target.value; renderResults(); save(); });
-  $('distribute').addEventListener('click', () => { state.settings.distribute = !state.settings.distribute; renderResults(); save(); });
-
+  $('step').addEventListener('input', e => { state.settings.step = e.target.value; renderCash(); save(); });
+  $('currency').addEventListener('input', e => { state.settings.currency = e.target.value; renderCash(); save(); });
+  $('distribute').addEventListener('click', () => { state.settings.distribute = !state.settings.distribute; renderCash(); save(); });
   $('addForm').addEventListener('submit', e => {
     e.preventDefault();
     const input = $('newName');
     const name = input.value.trim() || ('Игрок ' + (state.players.length + 1));
     const p = mk(name, state.settings.step || '0', '');
-    state.players.push(p); touched();
-    $('players').appendChild(cardEl(p));
+    state.players.push(p); state.isSample = false;
+    $('players').appendChild(cashCard(p));
     input.value = '';
-    renderResults(); save();
+    renderCash(); save();
   });
 
+  // ================= ТУРНИР =================
+  const MEDALS = ['🥇', '🥈', '🥉'];
+  function buildTourReport(res) {
+    const fmt = fmtT, L = [];
+    L.push('🏆 Итоги турнира · ' + today(), '');
+    L.push('💰 Призовой фонд: ' + fmt(res.pool) + ' · ' + res.rows.length + ' ' + plural(res.rows.length, 'игрок', 'игрока', 'игроков'));
+    L.push('🎟 Бай-ин ' + fmt(toCents(parseAmount(tour.buyIn))) + ' · ребаев: ' + res.totalRebuys + ' · аддонов: ' + res.totalAddons);
+    if (!res.valid) {
+      L.push('', '⚠️ Расчёт не завершён:');
+      res.issues.forEach(s => L.push('• ' + s));
+    } else {
+      L.push('', '🏅 Призы:');
+      res.prizes.forEach((p, i) => {
+        const w = res.rows.find(r => r.place === i + 1);
+        L.push((MEDALS[i] || (i + 1) + '.') + ' ' + (w ? w.name : '—') + ' — ' + fmt(p) + ' (' + String(res.pcts[i]).replace('.', ',') + '%)');
+      });
+    }
+    L.push('', '📊 Результаты:');
+    res.rows.slice().sort((a, b) => (a.place || 999) - (b.place || 999) || b.final - a.final).forEach(r => {
+      const dot = !res.valid ? '⚪' : r.final > 0 ? '🟢' : r.final < 0 ? '🔴' : '⚪';
+      const extra = [];
+      if (r.rebuys) extra.push('ребаев ' + r.rebuys);
+      if (r.addons) extra.push('аддонов ' + r.addons);
+      L.push(dot + ' ' + (r.place ? r.place + '. ' : '') + r.name + ': ' + (res.valid ? (r.final === 0 ? '0' : fmt(r.final, true)) + ' (' : '(') +
+        'внёс ' + fmt(r.paid) + (extra.length ? ', ' + extra.join(', ') : '') + (r.prize ? ', приз ' + fmt(r.prize) : '') + ')');
+    });
+    transfersLines(L, res.valid, res.transfers, fmt, 'Не рассчитаны: сначала укажите места и проценты.');
+    return L.join('\n');
+  }
+
+  function placeOptions(n, current) {
+    let h = '<option value="">—</option>';
+    for (let k = 1; k <= Math.max(n, current || 0); k++) h += '<option value="' + k + '">' + k + '-е место</option>';
+    return h;
+  }
+  function tourCard(p) {
+    const li = document.createElement('li');
+    li.className = 'card pad player stack-y g3';
+    li.dataset.id = p.id;
+    li.innerHTML =
+      '<div class="row">' +
+        '<span class="medal num" data-medal></span>' +
+        '<input class="field name" data-field="name" aria-label="Имя игрока" autocomplete="off">' +
+        '<div class="net num" data-net></div>' +
+        '<button type="button" class="btn ghost icon" data-action="remove" aria-label="Удалить игрока">' + X_SVG + '</button>' +
+      '</div>' +
+      '<div class="grid3">' +
+        '<div class="stack-y min0" style="gap:6px"><span class="label">Ребаи</span>' +
+          '<div class="stepper"><button type="button" data-action="rebuys-" aria-label="Убрать ребай">−</button><output class="num" data-out="rebuys"></output><button type="button" data-action="rebuys+" aria-label="Добавить ребай">+</button></div></div>' +
+        '<div class="stack-y min0" style="gap:6px"><span class="label">Аддоны</span>' +
+          '<div class="stepper"><button type="button" data-action="addons-" aria-label="Убрать аддон">−</button><output class="num" data-out="addons"></output><button type="button" data-action="addons+" aria-label="Добавить аддон">+</button></div></div>' +
+        '<div class="stack-y min0 place" style="gap:6px"><label class="label" for="pl-' + p.id + '">Место</label>' +
+          '<select id="pl-' + p.id + '" class="field" data-field="place"></select></div>' +
+      '</div>' +
+      '<div class="muted small num" data-summary></div>';
+    li.querySelector('[data-field=name]').value = p.name;
+    return li;
+  }
+  function renderTourPlayers() {
+    const ul = $('tPlayers');
+    ul.textContent = '';
+    tour.players.forEach(p => ul.appendChild(tourCard(p)));
+    $('tBuyIn').value = tour.buyIn; $('tRebuy').value = tour.rebuy; $('tAddon').value = tour.addon; $('tCurrency').value = tour.currency;
+    renderPayouts();
+    renderTour();
+  }
+  function renderPayouts() {
+    const ol = $('payouts');
+    ol.textContent = '';
+    tour.payouts.forEach((v, i) => {
+      const li = document.createElement('li');
+      li.className = 'payout';
+      li.dataset.index = i;
+      li.innerHTML = '<span class="medal num ' + (i < 3 ? 'p' + (i + 1) : '') + '">' + (i + 1) + '</span>' +
+        '<span class="min0 truncate small" data-winner></span>' +
+        '<label class="pct"><input class="field num" inputmode="decimal" aria-label="Процент за ' + (i + 1) + '-е место"><span>%</span></label>' +
+        '<span class="num bold nowrap" data-prize style="min-width:84px; text-align:right"></span>';
+      li.querySelector('input').value = v;
+      ol.appendChild(li);
+    });
+    $('removePlace').disabled = tour.payouts.length <= 1;
+    const key = tour.payouts.map(parseAmount).join(',');
+    document.querySelectorAll('[data-preset]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.preset === key)));
+  }
+  const findTour = id => tour.players.find(p => p.id === id);
+
+  $('tPlayers').addEventListener('input', e => {
+    const f = e.target.dataset.field; if (f !== 'name') return;
+    const p = findTour(e.target.closest('li').dataset.id); if (!p) return;
+    p.name = e.target.value; tour.isSample = false; renderTour(); saveT();
+  });
+  $('tPlayers').addEventListener('change', e => {
+    if (e.target.dataset.field !== 'place') return;
+    const p = findTour(e.target.closest('li').dataset.id); if (!p) return;
+    p.place = e.target.value; tour.isSample = false; renderTour(); saveT();
+  });
+  $('tPlayers').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]'); if (!btn) return;
+    const li = btn.closest('li'); const id = li.dataset.id; const p = findTour(id);
+    const a = btn.dataset.action;
+    if (a === 'remove') {
+      tour.players = tour.players.filter(x => x.id !== id);
+      li.remove();
+    } else {
+      const field = a.slice(0, -1), d = a.endsWith('+') ? 1 : -1;
+      p[field] = Math.max(0, (p[field] | 0) + d);
+    }
+    tour.isSample = false; renderTour(); saveT();
+  });
+  $('payouts').addEventListener('input', e => {
+    const li = e.target.closest('li'); if (!li) return;
+    tour.payouts[+li.dataset.index] = e.target.value;
+    const key = tour.payouts.map(parseAmount).join(',');
+    document.querySelectorAll('[data-preset]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.preset === key)));
+    renderTour(); saveT();
+  });
+  $('presets').addEventListener('click', e => {
+    const b = e.target.closest('[data-preset]'); if (!b) return;
+    tour.payouts = b.dataset.preset.split(',');
+    renderPayouts(); renderTour(); saveT();
+  });
+  $('addPlace').addEventListener('click', () => { tour.payouts.push('0'); renderPayouts(); renderTour(); saveT(); });
+  $('removePlace').addEventListener('click', () => { if (tour.payouts.length > 1) { tour.payouts.pop(); renderPayouts(); renderTour(); saveT(); } });
+  [['tBuyIn', 'buyIn'], ['tRebuy', 'rebuy'], ['tAddon', 'addon'], ['tCurrency', 'currency']].forEach(([id, k]) => {
+    $(id).addEventListener('input', e => { tour[k] = e.target.value; renderTour(); saveT(); });
+  });
+  $('tAddForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const input = $('tNewName');
+    const name = input.value.trim() || ('Игрок ' + (tour.players.length + 1));
+    const p = mkT(name, 0, 0, '');
+    tour.players.push(p); tour.isSample = false;
+    $('tPlayers').appendChild(tourCard(p));
+    input.value = '';
+    renderTour(); saveT();
+  });
+
+  function renderTour() {
+    const res = computeTournament(tour);
+    const fmt = fmtT;
+    const n = tour.players.length;
+    const byId = {}; res.rows.forEach(r => { byId[r.id] = r; });
+
+    $('tCount').textContent = n;
+    $('tEmpty').hidden = n > 0;
+    $('tSampleNote').hidden = !tour.isSample;
+
+    document.querySelectorAll('#tPlayers > li').forEach((li, i) => {
+      const r = byId[li.dataset.id]; if (!r) return;
+      const p = findTour(r.id);
+      li.querySelector('[data-field=name]').placeholder = 'Игрок ' + (i + 1);
+      li.querySelector('[data-action=remove]').setAttribute('aria-label', 'Удалить игрока ' + r.name);
+      li.querySelector('[data-out=rebuys]').textContent = r.rebuys;
+      li.querySelector('[data-out=addons]').textContent = r.addons;
+      li.querySelector('[data-action="rebuys-"]').disabled = r.rebuys === 0;
+      li.querySelector('[data-action="addons-"]').disabled = r.addons === 0;
+      const sel = li.querySelector('[data-field=place]');
+      const opts = placeOptions(n, r.place);
+      if (sel.dataset.opts !== opts) { sel.innerHTML = opts; sel.dataset.opts = opts; }
+      sel.value = p.place || '';
+      const medal = li.querySelector('[data-medal]');
+      medal.textContent = r.place || '—';
+      medal.className = 'medal num' + (r.place >= 1 && r.place <= 3 ? ' p' + r.place : '');
+      const net = li.querySelector('[data-net]');
+      if (res.valid) {
+        net.textContent = r.final === 0 ? '0' : fmt(r.final, true);
+        net.style.color = r.final > 0 ? 'var(--win)' : r.final < 0 ? 'var(--loss)' : 'var(--muted)';
+        net.style.background = r.final > 0 ? 'var(--win-tint)' : r.final < 0 ? 'var(--loss-tint)' : 'var(--surface-2)';
+      } else {
+        net.textContent = '−' + nf.format(r.paid / 100);
+        net.style.color = 'var(--muted)'; net.style.background = 'var(--surface-2)';
+      }
+      li.querySelector('[data-summary]').textContent = 'Внёс ' + fmt(r.paid) + (res.valid && r.prize ? ' · приз ' + fmt(r.prize) : '');
+    });
+
+    // таблица призов
+    const pctOk = res.pctSum === 100;
+    $('pctSum').textContent = 'Итого ' + String(res.pctSum).replace('.', ',') + '%';
+    $('pctSum').style.color = pctOk ? 'var(--win)' : 'var(--loss)';
+    document.querySelectorAll('#payouts > li').forEach((li, i) => {
+      const w = res.rows.filter(r => r.place === i + 1);
+      const cell = li.querySelector('[data-winner]');
+      cell.textContent = w.length === 1 ? w[0].name : w.length > 1 ? 'несколько игроков' : 'не указан';
+      cell.style.color = w.length === 1 ? 'var(--fg)' : 'var(--muted)';
+      li.querySelector('[data-prize]').textContent = pctOk ? fmt(res.prizes[i]) : '—';
+    });
+
+    $('tPool').textContent = fmt(res.pool);
+    $('tEntries').textContent = res.totalRebuys + ' / ' + res.totalAddons;
+    $('tPaid').textContent = res.pcts.length;
+
+    const color = n === 0 ? 'var(--muted)' : res.valid ? 'var(--win)' : 'var(--loss)';
+    const tint = n === 0 ? 'var(--surface-2)' : res.valid ? 'var(--win-tint)' : 'var(--loss-tint)';
+    const title = n === 0 ? 'Добавьте игроков' : res.valid ? 'Призы распределены' : 'Нужно поправить';
+    const text = n === 0 ? 'Начните со списка игроков ниже.'
+      : res.valid ? 'Фонд ' + fmt(res.pool) + ' разделён между ' + res.pcts.length + ' ' + plural(res.pcts.length, 'местом', 'местами', 'местами') + '.'
+      : res.issues.join(' ');
+    setStatus('t', res.valid && n > 0, color, tint, title, text);
+    setPill(res.valid && n > 0, color, tint, n === 0 ? 'Нет игроков' : res.valid ? 'Призы распределены' : 'Нужно поправить');
+
+    renderTransfers(n, res.valid, res.transfers, fmt, 'Переводы появятся, когда проценты дадут 100% и у каждого призового места будет один игрок.');
+    $('report').value = buildTourReport(res);
+  }
+
+  // ================= Режимы и общие кнопки =================
+  function setMode(m) {
+    mode = m; store(MKEY, m);
+    document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
+    $('cashView').hidden = m !== 'cash';
+    $('tourView').hidden = m !== 'tour';
+    $('dangerRow').hidden = false; $('confirmBox').hidden = true;
+    if (m === 'cash') renderCash(); else renderTour();
+  }
+  document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
   document.querySelectorAll('[data-sample]').forEach(b => b.addEventListener('click', () => {
-    const keep = state.settings;
-    state = sample(); state.settings.step = keep.step || '1000'; state.settings.currency = keep.currency;
-    renderPlayers(); save(); toast('Загружен пример');
+    if (mode === 'cash') {
+      const keep = state.settings;
+      state = sample(); state.settings.step = keep.step || '1000'; state.settings.currency = keep.currency;
+      renderCashPlayers(); save();
+    } else {
+      const cur = tour.currency;
+      tour = sampleT(); tour.currency = cur;
+      renderTourPlayers(); saveT();
+    }
+    toast('Загружен пример');
   }));
 
-  $('clear').addEventListener('click', () => { $('dangerRow').hidden = true; $('confirmBox').hidden = false; });
+  $('clear').addEventListener('click', () => {
+    $('confirmText').textContent = mode === 'cash'
+      ? 'Удалить всех игроков кэш-игры и их суммы? Отменить это нельзя.'
+      : 'Удалить всех игроков турнира? Настройки и призовые места останутся. Отменить это нельзя.';
+    $('dangerRow').hidden = true; $('confirmBox').hidden = false;
+  });
   $('confirmNo').addEventListener('click', () => { $('dangerRow').hidden = false; $('confirmBox').hidden = true; });
   $('confirmYes').addEventListener('click', () => {
-    state.players = []; touched();
+    if (mode === 'cash') { state.players = []; state.isSample = false; renderCashPlayers(); save(); }
+    else { tour.players = []; tour.isSample = false; renderTourPlayers(); saveT(); }
     $('dangerRow').hidden = false; $('confirmBox').hidden = true;
-    renderPlayers(); save(); toast('Список очищен');
+    toast('Список очищен');
   });
 
   function showReport(show) {
@@ -542,7 +930,9 @@ function greedyTransfers(rows) {
     } else fallback();
   });
 
-  renderPlayers();
+  renderCashPlayers();
+  renderTourPlayers();
+  setMode(mode);
 
   // Офлайн-режим: кэшируем приложение, чтобы оно открывалось без интернета.
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
