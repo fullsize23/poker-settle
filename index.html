@@ -936,7 +936,7 @@ function greedyTransfers(rows) {
 
   // Офлайн-режим: кэшируем приложение, чтобы оно открывалось без интернета.
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
-    window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+    window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => {}); });
   }
 })();
 </script>
