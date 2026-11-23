@@ -115,9 +115,6 @@
   .stepper output { text-align: center; font-weight: 700; font-size: 17px; }
   .net { padding: 6px 12px; border-radius: 8px; font-weight: 700; white-space: nowrap; }
   .lbl { display: flex; align-items: center; justify-content: space-between; }
-  .chips { display: inline-flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; }
-  .chips i { width: 14px; height: 14px; border-radius: 50%; border: 2px dashed rgba(238,244,241,.7); background: var(--accent); margin-left: -6px; box-shadow: 0 0 0 1.5px var(--surface); }
-  .chips i:first-child { margin-left: 0; }
   .medal { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; font-weight: 800; font-size: 13px; flex: none; background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
   .medal.p1 { background: var(--gold); color: #2a1f05; border-color: transparent; }
   .medal.p2 { background: #c9d3cf; color: #1a2420; border-color: transparent; }
@@ -136,13 +133,24 @@
   .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 40; background: var(--fg); color: var(--bg); padding: 10px 18px; border-radius: 999px; font-weight: 700; white-space: nowrap; }
   .sep { border-top: 1px solid var(--line); padding-top: 16px; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  .player .label { text-transform:none; letter-spacing:0; font-size:14px; }
+  .field[aria-invalid="true"] { border-color:var(--loss); }
+  .transfer { display:grid; grid-template-columns:minmax(0,1fr) auto; }
+  .transfer .amt { text-align:right; }
+  .transfer button { grid-column:1/-1; justify-self:end; }
+  .zero { align-self:flex-start; min-height:38px; font-size:14px; }
+  .totals .val { white-space:normal; overflow-wrap:anywhere; }
+  @media(max-width:380px) { .player .btn.chip { padding-inline:8px; } .topbar .pill { font-size:12px; } }
+  .remove-player { color:var(--muted); }
+  .remove-player:hover, .remove-player:focus-visible { color:var(--fg); }
+  #pill[data-visible="false"] { visibility:hidden; }
 </style>
 </head>
 <body>
 <header class="topbar">
   <div class="wrap gutter">
     <span class="brand"><b aria-hidden="true">♠</b> Взаиморасчёт</span>
-    <div id="pill" class="pill" aria-live="polite"><span id="pillIcon"></span><span id="pillText" class="num"></span></div>
+    <div id="pill" data-visible="false" class="pill" aria-live="polite"><span id="pillIcon"></span><span id="pillText" class="num"></span></div>
   </div>
 </header>
 
@@ -156,22 +164,18 @@
   <div id="cashView" class="stack-y g5">
     <section class="card felt pad5 stack-y g4">
       <div class="stack-y g1">
-        <h1>Расчёт после кэш-игры</h1>
-        <p class="muted small">Впишите, сколько каждый внёс и с какой суммой фишек ушёл из-за стола. Переводы посчитаются сами.</p>
-        <p id="sampleNote" class="small" style="color: var(--warn)" hidden>Сейчас открыт пример с тестовыми игроками.</p>
+        <h1>Кэш-игра</h1>
+        <p id="sampleNote" class="small" style="color: var(--warn)" hidden>Пример партии</p>
       </div>
       <div class="totals">
         <div class="stack-y g1 min0"><span class="label">Внесено</span><span id="tIn" class="num val truncate"></span></div>
         <div class="stack-y g1 min0"><span class="label">Выведено</span><span id="tOut" class="num val truncate"></span></div>
         <div class="stack-y g1 min0"><span class="label">Разница</span><span id="tDiff" class="num val truncate"></span></div>
       </div>
-      <div id="statusBox" class="status">
-        <div id="statusIcon" style="margin-top:2px"></div>
-        <div class="stack-y" style="gap:2px"><strong id="statusTitle"></strong><span id="statusText" class="text"></span></div>
-      </div>
-      <div class="row between" style="gap:16px">
+      <p id="statusBox" class="muted small" aria-live="polite" hidden></p>
+      <div id="adjustControls" class="row between" style="gap:16px">
         <label for="distribute" class="stack-y small" style="gap:2px; cursor:pointer">
-          <span class="bold">Пропорционально распределить расхождение между победителями</span>
+          <span class="bold">Распределить разницу</span>
           <span id="distHint" class="muted xs"></span>
         </label>
         <button id="distribute" type="button" role="switch" aria-checked="false" class="switch"><span></span></button>
@@ -179,13 +183,7 @@
     </section>
 
     <section class="stack-y g3">
-      <div class="row between" style="flex-wrap:wrap; align-items:flex-end; gap:12px">
-        <h2>Игроки <span id="count" class="num muted" style="font-size:16px"></span></h2>
-        <div class="row" style="gap:12px">
-          <label class="stack-y g1" style="width:120px"><span class="label">Бай-ин</span><input id="step" class="field sm num" inputmode="decimal"></label>
-          <label class="stack-y g1" style="width:72px"><span class="label">Валюта</span><input id="currency" class="field sm" maxlength="4"></label>
-        </div>
-      </div>
+      <h2>Игроки <span id="count" class="num muted" style="font-size:16px"></span></h2>
       <div id="empty" class="card pad stack-y g3 muted" style="align-items:center; text-align:center" hidden>
         <span>Список пуст. Добавьте первого игрока ниже или загрузите пример.</span>
         <button type="button" class="btn ghost" data-sample>Загрузить пример</button>
@@ -198,7 +196,6 @@
           Добавить
         </button>
       </form>
-      <p class="muted xs">Новый игрок сразу получает один бай-ин. Звёздочка у результата значит, что в нём учтена доля расхождения.</p>
     </section>
   </div>
 
@@ -208,7 +205,7 @@
       <div class="stack-y g1">
         <h1>Расчёт турнира</h1>
         <p class="muted small">Отметьте ребаи, аддоны и занятые места. Призовой фонд разделится по процентам, а переводы посчитаются сами.</p>
-        <p id="tSampleNote" class="small" style="color: var(--warn)" hidden>Сейчас открыт пример с тестовыми игроками.</p>
+        <p id="tSampleNote" class="small" style="color: var(--warn)" hidden>Пример партии</p>
       </div>
       <div class="totals">
         <div class="stack-y g1 min0"><span class="label">Призовой фонд</span><span id="tPool" class="num val truncate"></span></div>
@@ -302,17 +299,38 @@
 <script>
 /*LOGIC-START*/
 // Чистая логика расчёта. Все суммы хранятся в целых копейках.
-function parseAmount(s) {
-  const n = parseFloat(String(s == null ? '' : s).replace(/[\s ]/g, '').replace(',', '.'));
-  return Number.isFinite(n) ? n : 0;
+function validAmount(value) {
+  const raw = String(value ?? '').trim();
+  return /^(?:\d+|\d{1,3}(?:[ \u00a0\u202f]\d{3})+)(?:[.,]\d{1,2})?$/.test(raw)
+    && Number.isSafeInteger(Math.round(Number(raw.replace(/\s/g, '').replace(',', '.')) * 100));
+}
+function parseAmount(value) {
+  return validAmount(value) ? Number(String(value).replace(/\s/g, '').replace(',', '.')) : 0;
+}
+function nameIssues(rows) {
+  const names = rows.map(r => r.name.toLocaleLowerCase('ru'));
+  const duplicate = names.findIndex((name, index) => names.indexOf(name) !== index);
+  return duplicate < 0 ? [] : ['Уточните одинаковые имена: ' + rows[duplicate].name + '. Добавьте инициал или прозвище.'];
 }
 function toCents(n) { return Math.round(n * 100); }
 
-function computeSettlement(players, distribute) {
+function parseBuyIns(value) {
+  const entries = String(value ?? '').split('+');
+  let cents = 0;
+  for (const entry of entries) {
+    if (!validAmount(entry)) return null;
+    cents += toCents(parseAmount(entry));
+    if (!Number.isSafeInteger(cents)) return null;
+  }
+  return { cents, count: entries.length };
+}
+
+function computeSettlement(players, distribute, payments = []) {
   const rows = players.map((p, i) => {
-    const inC = toCents(parseAmount(p.buyIn));
+    const buyIns = parseBuyIns(p.buyIn);
+    const inC = buyIns?.cents ?? 0;
     const outC = toCents(parseAmount(p.cashOut));
-    return { id: p.id, name: (p.name || '').trim() || ('Игрок ' + (i + 1)), inC, outC, net: outC - inC, adj: 0, final: outC - inC };
+    return { id: p.id, name: (p.name || '').trim() || ('Игрок ' + (i + 1)), buyInCount: buyIns?.count ?? 0, inC, outC, net: outC - inC, adj: 0, final: outC - inC };
   });
   const totalIn = rows.reduce((s, r) => s + r.inC, 0);
   const totalOut = rows.reduce((s, r) => s + r.outC, 0);
@@ -320,9 +338,18 @@ function computeSettlement(players, distribute) {
   const winners = rows.filter(r => r.net > 0);
   const sumPos = winners.reduce((s, r) => s + r.net, 0);
 
-  let canSettle = diff === 0;
+  const errors = nameIssues(rows), pending = [];
+  players.forEach((p, i) => {
+    const name = rows[i].name;
+    if (!String(p.buyIn ?? '').trim()) pending.push(name + ' — укажите взнос.');
+    else if (!rows[i].buyInCount) errors.push(name + ' — проверьте взнос.');
+    if (!String(p.cashOut ?? '').trim()) pending.push(name + ' — укажите сумму на руках.');
+    else if (!validAmount(p.cashOut)) errors.push(name + ' — проверьте сумму на руках.');
+  });
+  const issues = errors.concat(pending);
+  let canSettle = !issues.length && diff === 0;
   let adjusted = false;
-  if (diff !== 0 && distribute && sumPos > 0) {
+  if (!issues.length && diff !== 0 && distribute && sumPos > 0) {
     // Победители забирают расхождение пропорционально выигрышу (округление методом наибольших остатков).
     const target = -diff;
     const parts = winners.map(r => {
@@ -341,12 +368,13 @@ function computeSettlement(players, distribute) {
     canSettle = true;
     adjusted = true;
   }
-  const transfers = canSettle ? greedyTransfers(rows) : [];
-  return { rows, totalIn, totalOut, diff, sumPos, canSettle, adjusted, transfers };
+  const transfers = canSettle ? greedyTransfers(rows, payments) : [];
+  return { issues, errors, rows, totalIn, totalOut, diff, sumPos, canSettle, adjusted, transfers };
 }
 
 // Турнир: фонд = бай-ины + ребаи + аддоны; призы по процентам, округлены до целых, остаток — первому месту.
 function computeTournament(t) {
+  const payments = t.payments || [];
   const buyC = toCents(parseAmount(t.buyIn));
   const rebuyC = toCents(parseAmount(t.rebuy));
   const addonC = toCents(parseAmount(t.addon));
@@ -362,7 +390,13 @@ function computeTournament(t) {
   const prizes = pcts.map(p => Math.floor(pool * p / 100 / 100) * 100);
   if (prizes.length) prizes[0] += pool - prizes.reduce((s, x) => s + x, 0);
 
-  const issues = [];
+  const issues = nameIssues(rows);
+  for (const [field, label] of [['buyIn', 'бай-ин'], ['rebuy', 'ребай'], ['addon', 'аддон']]) {
+    if (!validAmount(t[field])) issues.push('Проверьте сумму: ' + label + '.');
+  }
+  t.payouts.forEach((value, i) => {
+    if (!validAmount(value) || parseAmount(value) > 100) issues.push('Доля за место ' + (i + 1) + ' должна быть от 0 до 100%.');
+  });
   if (!rows.length) issues.push('Добавьте игроков.');
   if (!pcts.length) issues.push('Добавьте хотя бы одно призовое место.');
   else if (pctSum !== 100) issues.push('Сумма процентов ' + String(pctSum).replace('.', ',') + '%, а должна быть 100%.');
@@ -381,16 +415,22 @@ function computeTournament(t) {
     r.prize = valid && r.place >= 1 && r.place <= prizes.length ? prizes[r.place - 1] : 0;
     r.final = r.prize - r.paid;
   });
-  const transfers = valid ? greedyTransfers(rows) : [];
+  const transfers = valid ? greedyTransfers(rows, payments) : [];
   const totalRebuys = rows.reduce((s, r) => s + r.rebuys, 0);
   const totalAddons = rows.reduce((s, r) => s + r.addons, 0);
   return { rows, pool, pcts, pctSum, prizes, issues, valid, transfers, totalRebuys, totalAddons };
 }
 
 // Жадный алгоритм: крупнейший должник платит крупнейшему победителю, пока один из них не рассчитается.
-function greedyTransfers(rows) {
-  const debtors = rows.filter(r => r.final < 0).map(r => ({ name: r.name, amt: -r.final }));
-  const creditors = rows.filter(r => r.final > 0).map(r => ({ name: r.name, amt: r.final }));
+function greedyTransfers(original, payments = []) {
+  const rows = original.map(r => ({ ...r }));
+  const byId = new Map(rows.map(r => [r.id, r]));
+  for (const t of payments) {
+    byId.get(t.fromId).final += t.amount;
+    byId.get(t.toId).final -= t.amount;
+  }
+  const debtors = rows.filter(r => r.final < 0).map(r => ({ id: r.id, name: r.name, amt: -r.final }));
+  const creditors = rows.filter(r => r.final > 0).map(r => ({ id: r.id, name: r.name, amt: r.final }));
   debtors.sort((a, b) => b.amt - a.amt);
   creditors.sort((a, b) => b.amt - a.amt);
   const out = [];
@@ -398,7 +438,7 @@ function greedyTransfers(rows) {
   while (i < debtors.length && j < creditors.length) {
     const d = debtors[i], c = creditors[j];
     const x = Math.min(d.amt, c.amt);
-    if (x > 0) out.push({ from: d.name, to: c.name, amount: x });
+    if (x > 0) out.push({ from: d.name, to: c.name, fromId: d.id, toId: c.id, amount: x });
     d.amt -= x; c.amt -= x;
     if (d.amt === 0) i++;
     if (c.amt === 0) j++;
@@ -421,7 +461,7 @@ function greedyTransfers(rows) {
   const mkT = (name, rebuys, addons, place) => ({ id: newId(), name, rebuys, addons, place: place ? String(place) : '' });
 
   const sample = () => ({
-    settings: { step: '1000', currency: '₽', distribute: false },
+    settings: { currency: '₽', distribute: false },
     players: [mk('Алексей', '2000', '4700'), mk('Мария', '1000', '2300'), mk('Дмитрий', '3000', '800'), mk('Ольга', '2000', '1200'), mk('Сергей', '1000', '0')],
     isSample: true,
   });
@@ -490,21 +530,37 @@ function greedyTransfers(rows) {
     } else if (n > 0 && !transfers.length) {
       msg.hidden = false; msg.classList.add('muted'); msg.textContent = 'Переводы не нужны: все остались при своих.';
     }
-    transfers.forEach((t, i) => {
+    const game = fmt === fmtC ? state : tour;
+    const redraw = fmt === fmtC ? renderCash : renderTour;
+    const persist = fmt === fmtC ? save : saveT;
+    const payments = game.payments || [];
+    if (payments.length && canSettle && !transfers.length) msg.textContent = 'Все переводы выполнены.';
+    function append(t, done) {
       const li = document.createElement('li');
       li.className = 'card transfer';
-      li.innerHTML = '<span class="num muted small" style="width:18px"></span><span class="who" style="color:var(--loss)"></span>' +
-        '<span class="row muted"><span aria-hidden="true">→</span><span class="amt num"></span><span aria-hidden="true">→</span></span>' +
-        '<span class="who" style="color:var(--win)"></span>';
-      const s = li.children;
-      s[0].textContent = i + 1; s[1].textContent = t.from; s[3].textContent = t.to;
-      li.querySelector('.amt').textContent = fmt(t.amount);
+      const label = document.createElement('span');
+      const name = (id, fallback) => game.players.find(p => p.id === id)?.name.trim() || fallback;
+      label.className = 'who';
+      label.textContent = name(t.fromId, t.from) + ' → ' + name(t.toId, t.to);
+      const amount = document.createElement('strong');
+      amount.className = 'amt num'; amount.textContent = fmt(t.amount);
+      li.append(label, amount);
+      if (done) {
+        const undo = document.createElement('button');
+        undo.type = 'button'; undo.className = 'btn ghost preset';
+        undo.textContent = '✓ Переведено · отменить';
+        undo.addEventListener('click', () => {
+          game.payments = payments.filter(payment => payment !== t);
+          persist(); redraw();
+        });
+        li.appendChild(undo);
+      }
       list.appendChild(li);
-    });
+    }
+    payments.forEach(t => append(t, true));
+    transfers.forEach(t => append(t, false));
     if (transfers.length) {
-      note.hidden = false;
-      note.textContent = transfers.length + ' ' + plural(transfers.length, 'перевод', 'перевода', 'переводов') +
-        '. Сначала самый крупный проигравший рассчитывается с самым крупным победителем, так переводов получается меньше всего.';
+      note.hidden = false; note.textContent = (payments.length ? 'Осталось переводов: ' : 'Переводов: ') + transfers.length;
     }
     $('clear').disabled = n === 0;
     $('copy').disabled = n === 0;
@@ -512,9 +568,14 @@ function greedyTransfers(rows) {
   const today = () => new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
   function transfersLines(L, canSettle, transfers, fmt, blocked) {
     L.push('', '💸 Переводы:');
+    const game = fmt === fmtC ? state : tour;
+    for (const t of game.payments || []) {
+      const name = (id, fallback) => game.players.find(p => p.id === id)?.name.trim() || fallback;
+      L.push('✓ Переведено: ' + name(t.fromId, t.from) + ' → ' + name(t.toId, t.to) + ' · ' + fmt(t.amount));
+    }
     if (!canSettle) L.push(blocked);
-    else if (!transfers.length) L.push('Переводы не нужны: все остались при своих.');
-    else transfers.forEach((t, i) => L.push((i + 1) + '. ' + t.from + ' → ' + fmt(t.amount) + ' → ' + t.to));
+    else if (!transfers.length) L.push('Оставшихся переводов нет.');
+    else transfers.forEach(t => L.push(t.from + ' → ' + t.to + ' · ' + fmt(t.amount)));
   }
 
   // ================= КЭШ-ИГРА =================
@@ -522,6 +583,11 @@ function greedyTransfers(rows) {
     const fmt = fmtC, L = [];
     L.push('♠️ Итоги покерной игры · ' + today(), '');
     L.push('💰 Общий банк: ' + fmt(res.totalIn) + ' · ' + res.rows.length + ' ' + plural(res.rows.length, 'игрок', 'игрока', 'игроков'));
+    if (res.issues.length) {
+      L.push(...res.issues);
+      transfersLines(L, false, [], fmt, 'Расчёт ожидает ввода данных.');
+      return L.join('\n');
+    }
     if (res.diff !== 0) {
       const kind = res.diff < 0 ? 'недостача' : 'излишек';
       L.push(res.adjusted
@@ -531,7 +597,7 @@ function greedyTransfers(rows) {
     L.push('', '📊 Результаты:');
     res.rows.slice().sort((a, b) => b.final - a.final).forEach(r => {
       const dot = r.final > 0 ? '🟢' : r.final < 0 ? '🔴' : '⚪';
-      L.push(dot + ' ' + r.name + ': ' + (r.final === 0 ? '0' : fmt(r.final, true)) + ' (внёс ' + fmt(r.inC) + ', вывел ' + fmt(r.outC) + ')');
+      L.push(dot + ' ' + r.name + ': ' + (r.final === 0 ? '0' : fmt(r.final, true)) + ' (внёс ' + fmt(r.inC) + ', вывел ' + fmt(r.outC) + (r.adj ? ', поправка ' + fmt(r.adj, true) : '') + ')');
     });
     transfersLines(L, res.canSettle, res.transfers, fmt, 'Не рассчитаны: сначала сведите баланс.');
     return L.join('\n');
@@ -545,33 +611,33 @@ function greedyTransfers(rows) {
       '<div class="row">' +
         '<input class="field name" data-field="name" aria-label="Имя игрока" autocomplete="off">' +
         '<div class="net num" data-net></div>' +
-        '<button type="button" class="btn ghost icon" data-action="remove" aria-label="Удалить игрока">' + X_SVG + '</button>' +
+        '<button type="button" class="btn icon remove-player" data-action="remove" aria-label="Удалить игрока">' + X_SVG + '</button>' +
       '</div>' +
       '<div class="grid2">' +
         '<div class="stack-y min0" style="gap:6px">' +
-          '<label class="label lbl" for="in-' + p.id + '"><span>Внёс (buy-in)</span><span class="chips" data-chips></span></label>' +
+          '<label class="label lbl" for="in-' + p.id + '">Внёс</label>' +
           '<div class="row">' +
-            '<button type="button" class="btn ghost sq num" data-action="minus" aria-label="Минус один бай-ин">−</button>' +
-            '<input id="in-' + p.id + '" class="field num" data-field="buyIn" inputmode="decimal" placeholder="0" autocomplete="off">' +
-            '<button type="button" class="btn chip" data-action="plus">+1 бай-ин</button>' +
+            '<input id="in-' + p.id + '" class="field num" data-field="buyIn" inputmode="text" placeholder="Например, 1000+500" autocomplete="off">' +
           '</div>' +
+          '<span class="small muted" data-buy-summary hidden></span>' +
         '</div>' +
         '<div class="stack-y min0" style="gap:6px">' +
-          '<label class="label" for="out-' + p.id + '">Вывел (cash-out)</label>' +
-          '<input id="out-' + p.id + '" class="field num" data-field="cashOut" inputmode="decimal" placeholder="0" autocomplete="off">' +
+          '<label class="label" for="out-' + p.id + '">На руках в конце</label>' +
+          '<input id="out-' + p.id + '" class="field num" data-field="cashOut" inputmode="decimal" placeholder="Введите сумму" autocomplete="off"><button type="button" class="btn ghost zero" data-action="zero">Закончил с нулём</button>' +
         '</div>' +
       '</div>';
     li.querySelector('[data-field=name]').value = p.name;
     li.querySelector('[data-field=buyIn]').value = p.buyIn;
     li.querySelector('[data-field=cashOut]').value = p.cashOut;
+    const line = document.createElement('p');
+    line.className = 'small muted'; line.dataset.adjustment = '';
+    li.appendChild(line);
     return li;
   }
   function renderCashPlayers() {
     const ul = $('players');
     ul.textContent = '';
     state.players.forEach(p => ul.appendChild(cashCard(p)));
-    $('step').value = state.settings.step;
-    $('currency').value = state.settings.currency;
     renderCash();
   }
   const findCash = id => state.players.find(p => p.id === id);
@@ -586,48 +652,61 @@ function greedyTransfers(rows) {
     const li = btn.closest('li'); const id = li.dataset.id; const p = findCash(id);
     const a = btn.dataset.action;
     if (a === 'remove') {
+      if (!canRemove(state, id)) return;
       state.players = state.players.filter(x => x.id !== id);
       li.remove();
-    } else {
-      const stepC = toCents(parseAmount(state.settings.step));
-      const next = Math.max(0, toCents(parseAmount(p.buyIn)) + (a === 'plus' ? 1 : -1) * stepC);
-      p.buyIn = String(next / 100);
-      li.querySelector('[data-field=buyIn]').value = p.buyIn;
+    } else if (a === 'zero') {
+      p.cashOut = '0'; li.querySelector('[data-field=cashOut]').value = '0';
     }
     state.isSample = false; renderCash(); save();
   });
 
   function renderCash() {
-    const res = computeSettlement(state.players, state.settings.distribute);
+    const res = computeSettlement(state.players, state.settings.distribute, state.payments);
     const fmt = fmtC;
     const n = state.players.length;
     const balanced = res.diff === 0;
     const byId = {}; res.rows.forEach(r => { byId[r.id] = r; });
 
+    const hasIssues = res.issues.length > 0;
+    $('statusBox').hidden = !n || (!hasIssues && balanced);
+    $('adjustControls').hidden = hasIssues || balanced || !res.sumPos;
     $('count').textContent = n;
     $('empty').hidden = n > 0;
     $('sampleNote').hidden = !state.isSample;
 
-    const stepC = toCents(parseAmount(state.settings.step));
     document.querySelectorAll('#players > li').forEach((li, i) => {
       const r = byId[li.dataset.id]; if (!r) return;
       li.querySelector('[data-field=name]').placeholder = 'Игрок ' + (i + 1);
       li.querySelector('[data-action=remove]').setAttribute('aria-label', 'Удалить игрока ' + r.name);
       const net = li.querySelector('[data-net]');
-      net.textContent = (r.final === 0 ? '0' : fmt(r.final, true)) + (r.adj ? '*' : '');
+      net.textContent = (r.final === 0 ? '0' : fmt(r.final, true));
+      const p = state.players[i];
+      const invalidBuy = !r.buyInCount;
+      const summary = li.querySelector('[data-buy-summary]');
+      summary.hidden = r.buyInCount < 2;
+      summary.textContent = summary.hidden ? '' : r.buyInCount + ' ' + plural(r.buyInCount, 'бай-ин', 'бай-ина', 'бай-инов') + ' · ' + fmt(r.inC);
+      const invalidOut = !validAmount(p.cashOut);
+      li.querySelector('[data-field=buyIn]').setAttribute('aria-invalid', invalidBuy && !!String(p.buyIn ?? '').trim());
+      li.querySelector('[data-field=cashOut]').setAttribute('aria-invalid', invalidOut && !!String(p.cashOut ?? '').trim());
+      li.querySelector('[data-action=zero]').hidden = !!String(p.cashOut ?? '').trim();
+      if (invalidBuy || invalidOut) net.textContent = '—';
+      const line = li.querySelector('[data-adjustment]');
+      line.hidden = !r.adj;
+      line.textContent = 'По фишкам ' + fmt(r.net, true) + ' · поправка ' + fmt(r.adj, true) + ' · к получению ' + fmt(r.final);
       net.title = r.adj ? 'С учётом распределения расхождения' : '';
-      net.style.color = r.final > 0 ? 'var(--win)' : r.final < 0 ? 'var(--loss)' : 'var(--muted)';
-      net.style.background = r.final > 0 ? 'var(--win-tint)' : r.final < 0 ? 'var(--loss-tint)' : 'var(--surface-2)';
-      const count = stepC > 0 ? r.inC / stepC : 0;
-      const chips = li.querySelector('[data-chips]');
-      if (Number.isInteger(count) && count > 0) {
-        chips.innerHTML = '<span style="display:inline-flex">' + '<i></i>'.repeat(Math.min(count, 6)) + '</span><span class="num">×' + count + '</span>';
-      } else chips.textContent = '';
+      net.style.color = invalidBuy || invalidOut ? 'var(--muted)' : r.final > 0 ? 'var(--win)' : r.final < 0 ? 'var(--loss)' : 'var(--muted)';
+      net.style.background = invalidBuy || invalidOut ? 'var(--surface-2)' : r.final > 0 ? 'var(--win-tint)' : r.final < 0 ? 'var(--loss-tint)' : 'var(--surface-2)';
     });
 
     $('tIn').textContent = fmt(res.totalIn);
     $('tOut').textContent = fmt(res.totalOut);
     $('tDiff').textContent = balanced ? '0' : fmt(res.diff, true);
+    if (hasIssues) {
+      $('tDiff').textContent = '—';
+      if (state.players.some(p => !validAmount(p.cashOut))) $('tOut').textContent = '—';
+      if (res.rows.some(r => !r.buyInCount)) $('tIn').textContent = '—';
+    }
     $('tDiff').style.color = balanced ? 'var(--win)' : 'var(--loss)';
 
     const ok = balanced && n > 0;
@@ -635,13 +714,13 @@ function greedyTransfers(rows) {
     const tint = n === 0 ? 'var(--surface-2)' : balanced ? 'var(--win-tint)' : res.adjusted ? 'var(--warn-tint)' : 'var(--loss-tint)';
     const title = n === 0 ? 'Добавьте игроков' : balanced ? 'Баланс сошёлся'
       : res.diff < 0 ? 'Недостача ' + fmt(-res.diff) : 'Излишек ' + fmt(res.diff);
-    let text = n === 0 ? 'Начните со списка игроков ниже.'
-      : balanced ? 'Сумма выводов равна сумме входов.'
-      : res.diff < 0 ? 'Выведено на ' + fmt(-res.diff) + ' меньше, чем внесено: в банке не хватает фишек или кто-то не записал вывод.'
-      : 'Выведено на ' + fmt(res.diff) + ' больше, чем внесено: проверьте, все ли докупки записаны.';
-    if (!balanced && n > 0 && res.adjusted) text += ' Расхождение распределено между победителями.';
-    setStatus('', ok, color, tint, title, text);
-    setPill(ok, color, tint, n === 0 ? 'Нет игроков' : title);
+    const hint = $('statusBox');
+    hint.textContent = res.issues[0] || (res.adjusted
+      ? 'Разница распределена между победителями.'
+      : 'Проверьте взносы и суммы на руках.');
+    hint.style.color = res.errors.length ? 'var(--loss)' : 'var(--muted)';
+    const status = res.errors.length ? 'Проверьте данные' : hasIssues ? 'Ожидает ввода' : title;
+    setPill(ok && !hasIssues, hasIssues ? 'var(--muted)' : color, hasIssues ? 'var(--surface-2)' : tint, status);
 
     $('distribute').setAttribute('aria-checked', state.settings.distribute ? 'true' : 'false');
     $('distHint').textContent = res.sumPos === 0 && !balanced
@@ -649,18 +728,16 @@ function greedyTransfers(rows) {
       : 'Каждый в плюсе получает долю расхождения по размеру выигрыша.';
 
     renderTransfers(n, res.canSettle, res.transfers, fmt,
-      'Переводы появятся, когда баланс сойдётся. Исправьте суммы или включите распределение расхождения между победителями.');
+      hasIssues ? res.issues.join(' ') : 'Переводы появятся, когда баланс сойдётся. Исправьте суммы или включите распределение расхождения между победителями.');
     $('report').value = buildCashReport(res);
   }
 
-  $('step').addEventListener('input', e => { state.settings.step = e.target.value; renderCash(); save(); });
-  $('currency').addEventListener('input', e => { state.settings.currency = e.target.value; renderCash(); save(); });
   $('distribute').addEventListener('click', () => { state.settings.distribute = !state.settings.distribute; renderCash(); save(); });
   $('addForm').addEventListener('submit', e => {
     e.preventDefault();
     const input = $('newName');
     const name = input.value.trim() || ('Игрок ' + (state.players.length + 1));
-    const p = mk(name, state.settings.step || '0', '');
+    const p = mk(name, '', '');
     state.players.push(p); state.isSample = false;
     $('players').appendChild(cashCard(p));
     input.value = '';
@@ -711,7 +788,7 @@ function greedyTransfers(rows) {
         '<span class="medal num" data-medal></span>' +
         '<input class="field name" data-field="name" aria-label="Имя игрока" autocomplete="off">' +
         '<div class="net num" data-net></div>' +
-        '<button type="button" class="btn ghost icon" data-action="remove" aria-label="Удалить игрока">' + X_SVG + '</button>' +
+        '<button type="button" class="btn icon remove-player" data-action="remove" aria-label="Удалить игрока">' + X_SVG + '</button>' +
       '</div>' +
       '<div class="grid3">' +
         '<div class="stack-y min0" style="gap:6px"><span class="label">Ребаи</span>' +
@@ -768,11 +845,13 @@ function greedyTransfers(rows) {
     const li = btn.closest('li'); const id = li.dataset.id; const p = findTour(id);
     const a = btn.dataset.action;
     if (a === 'remove') {
+      if (!canRemove(tour, id)) return;
       tour.players = tour.players.filter(x => x.id !== id);
       li.remove();
     } else {
       const field = a.slice(0, -1), d = a.endsWith('+') ? 1 : -1;
-      p[field] = Math.max(0, (p[field] | 0) + d);
+      const next = Math.max(0, (p[field] | 0) + d);
+      p[field] = next;
     }
     tour.isSample = false; renderTour(); saveT();
   });
@@ -810,6 +889,7 @@ function greedyTransfers(rows) {
     const n = tour.players.length;
     const byId = {}; res.rows.forEach(r => { byId[r.id] = r; });
 
+    $('tCurrency').disabled = !!tour.payments?.length;
     $('tCount').textContent = n;
     $('tEmpty').hidden = n > 0;
     $('tSampleNote').hidden = !tour.isSample;
@@ -843,15 +923,19 @@ function greedyTransfers(rows) {
     });
 
     // таблица призов
-    const pctOk = res.pctSum === 100;
+    const pctOk = res.pctSum === 100 && tour.payouts.every(v => validAmount(v) && parseAmount(v) <= 100);
+    for (const [id,key] of [['tBuyIn','buyIn'],['tRebuy','rebuy'],['tAddon','addon']]) {
+      $(id).setAttribute('aria-invalid', !validAmount(tour[key]));
+    }
     $('pctSum').textContent = 'Итого ' + String(res.pctSum).replace('.', ',') + '%';
     $('pctSum').style.color = pctOk ? 'var(--win)' : 'var(--loss)';
     document.querySelectorAll('#payouts > li').forEach((li, i) => {
       const w = res.rows.filter(r => r.place === i + 1);
+      li.querySelector('input').setAttribute('aria-invalid', !validAmount(tour.payouts[i]) || parseAmount(tour.payouts[i]) > 100);
       const cell = li.querySelector('[data-winner]');
       cell.textContent = w.length === 1 ? w[0].name : w.length > 1 ? 'несколько игроков' : 'не указан';
       cell.style.color = w.length === 1 ? 'var(--fg)' : 'var(--muted)';
-      li.querySelector('[data-prize]').textContent = pctOk ? fmt(res.prizes[i]) : '—';
+      li.querySelector('[data-prize]').textContent = pctOk && [tour.buyIn,tour.rebuy,tour.addon].every(validAmount) ? fmt(res.prizes[i]) : '—';
     });
 
     $('tPool').textContent = fmt(res.pool);
@@ -867,11 +951,27 @@ function greedyTransfers(rows) {
     setStatus('t', res.valid && n > 0, color, tint, title, text);
     setPill(res.valid && n > 0, color, tint, n === 0 ? 'Нет игроков' : res.valid ? 'Призы распределены' : 'Нужно поправить');
 
-    renderTransfers(n, res.valid, res.transfers, fmt, 'Переводы появятся, когда проценты дадут 100% и у каждого призового места будет один игрок.');
+    renderTransfers(n, res.valid, res.transfers, fmt, res.issues.join(' '));
     $('report').value = buildTourReport(res);
   }
 
+  function canRemove(game, id) {
+    if (!(game.payments || []).some(t => t.fromId === id || t.toId === id)) return true;
+    toast('Сначала отмените отметки переводов игрока'); return false;
+  }
   // ================= Режимы и общие кнопки =================
+  const topbar = document.querySelector('.topbar');
+  const cashTotals = document.querySelector('#cashView .totals');
+  const tourTotals = document.querySelector('#tourView .totals');
+  function updatePillVisibility() {
+    const totals = mode === 'cash' ? cashTotals : tourTotals;
+    $('pill').dataset.visible = String(totals.getBoundingClientRect().bottom <= topbar.getBoundingClientRect().bottom);
+  }
+  window.addEventListener('scroll', updatePillVisibility, { passive:true });
+  window.addEventListener('resize', updatePillVisibility);
+  const layoutObserver = new ResizeObserver(updatePillVisibility);
+  layoutObserver.observe(document.querySelector('main'));
+  layoutObserver.observe(topbar);
   function setMode(m) {
     mode = m; store(MKEY, m);
     document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
@@ -879,13 +979,16 @@ function greedyTransfers(rows) {
     $('tourView').hidden = m !== 'tour';
     $('dangerRow').hidden = false; $('confirmBox').hidden = true;
     if (m === 'cash') renderCash(); else renderTour();
+    updatePillVisibility();
   }
   document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
 
   document.querySelectorAll('[data-sample]').forEach(b => b.addEventListener('click', () => {
+    const current = mode === 'cash' ? state : tour;
+    if (current.players.length && !confirm('Заменить текущую партию примером? Игроки и отметки переводов будут сброшены.')) return;
     if (mode === 'cash') {
       const keep = state.settings;
-      state = sample(); state.settings.step = keep.step || '1000'; state.settings.currency = keep.currency;
+      state = sample(); state.settings.currency = keep.currency;
       renderCashPlayers(); save();
     } else {
       const cur = tour.currency;
@@ -903,8 +1006,8 @@ function greedyTransfers(rows) {
   });
   $('confirmNo').addEventListener('click', () => { $('dangerRow').hidden = false; $('confirmBox').hidden = true; });
   $('confirmYes').addEventListener('click', () => {
-    if (mode === 'cash') { state.players = []; state.isSample = false; renderCashPlayers(); save(); }
-    else { tour.players = []; tour.isSample = false; renderTourPlayers(); saveT(); }
+    if (mode === 'cash') { state.players = []; state.payments = []; state.isSample = false; renderCashPlayers(); save(); }
+    else { tour.players = []; tour.payments = []; tour.isSample = false; renderTourPlayers(); saveT(); }
     $('dangerRow').hidden = false; $('confirmBox').hidden = true;
     toast('Список очищен');
   });
